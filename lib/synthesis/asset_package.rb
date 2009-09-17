@@ -115,7 +115,7 @@ module Synthesis
       def get_file_revision(path)
         if File.exists?(path)
           begin
-            `svn info #{path}`[/Last Changed Rev: (.*?)\n/][/(\d+)/].to_i
+            `svn info #{path}`[/Revision: (.*?)\n/][/(\d+)/].to_i
           rescue # use filename timestamp if not in subversion
             File.mtime(path).to_i
           end
@@ -151,24 +151,30 @@ module Synthesis
       end
 
       def compress_js(source)
-        jsmin_path = "#{RAILS_ROOT}/vendor/plugins/asset_packager/lib"
-        tmp_path = "#{RAILS_ROOT}/tmp/#{@target}_#{revision}"
-      
-        # write out to a temp file
-        File.open("#{tmp_path}_uncompressed.js", "w") {|f| f.write(source) }
-      
-        # compress file with JSMin library
-        `ruby #{jsmin_path}/jsmin.rb <#{tmp_path}_uncompressed.js >#{tmp_path}_compressed.js \n`
+        if (!Synthesis::AssetPackage::const_defined?(:COMPRESS_JS) or
+            (Synthesis::AssetPackage::const_defined?(:COMPRESS_JS) and Synthesis::AssetPackage::COMPRESS_JS==true))
 
-        # read it back in and trim it
-        result = ""
-        File.open("#{tmp_path}_compressed.js", "r") { |f| result += f.read.strip }
-  
-        # delete temp files if they exist
-        File.delete("#{tmp_path}_uncompressed.js") if File.exists?("#{tmp_path}_uncompressed.js")
-        File.delete("#{tmp_path}_compressed.js") if File.exists?("#{tmp_path}_compressed.js")
+          jsmin_path = "#{RAILS_ROOT}/vendor/plugins/asset_packager/lib"
+          tmp_path = "#{RAILS_ROOT}/tmp/#{@target}_#{revision}"
 
-        result
+          # write out to a temp file
+          File.open("#{tmp_path}_uncompressed.js", "w") {|f| f.write(source) }
+
+          # compress file with JSMin library
+          `ruby #{jsmin_path}/jsmin.rb <#{tmp_path}_uncompressed.js >#{tmp_path}_compressed.js \n`
+
+          # read it back in and trim it
+          result = ""
+          File.open("#{tmp_path}_compressed.js", "r") { |f| result += f.read.strip }
+
+          # delete temp files if they exist
+          File.delete("#{tmp_path}_uncompressed.js") if File.exists?("#{tmp_path}_uncompressed.js")
+          File.delete("#{tmp_path}_compressed.js") if File.exists?("#{tmp_path}_compressed.js")
+
+          result
+        else
+          source
+        end
       end
   
       def compress_css(source)

@@ -130,7 +130,7 @@ class AssetPackageHelperProductionTest < Test::Unit::TestCase
   
   def test_image_tag
     timestamp = rails_asset_id("images/rails.png")
-    assert_dom_equal %(<img alt="Rails" src="/images/rails.png?#{timestamp}" />), image_tag("rails")
+    assert_dom_equal %(<img alt="Rails" src="/images/rails.png?#{timestamp}" />), image_tag("v3/rails")
   end
   
 end

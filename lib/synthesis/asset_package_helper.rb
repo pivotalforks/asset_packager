@@ -1,6 +1,17 @@
 module Synthesis
   module AssetPackageHelper
 
+    def self.use_packaged_assets
+      silence_warnings {const_set(:USE_COMPRESSED_CSS_AND_JS, true)}
+      Synthesis::AssetPackage.delete_all
+      Synthesis::AssetPackage.build_all
+    end
+
+    def use_compressed_css_and_js?
+      return @use_compressed_css_and_js_override unless @use_compressed_css_and_js_override.nil?
+      Synthesis::AssetPackageHelper.const_defined?(:USE_COMPRESSED_CSS_AND_JS) && USE_COMPRESSED_CSS_AND_JS
+    end
+
     def javascript_include_merged(*sources)
       options = sources.last.is_a?(Hash) ? sources.pop.stringify_keys : { }
 
@@ -13,7 +24,7 @@ module Synthesis
       end
 
       sources.collect!{|s| s.to_s}
-      sources = (RAILS_ENV == "production" ? 
+      sources = (use_compressed_css_and_js? ?
         AssetPackage.targets_from_sources("javascripts", sources) : 
         AssetPackage.sources_from_targets("javascripts", sources))
         
@@ -24,7 +35,7 @@ module Synthesis
       options = sources.last.is_a?(Hash) ? sources.pop.stringify_keys : { }
 
       sources.collect!{|s| s.to_s}
-      sources = (RAILS_ENV == "production" ? 
+      sources = (use_compressed_css_and_js? ?
         AssetPackage.targets_from_sources("stylesheets", sources) : 
         AssetPackage.sources_from_targets("stylesheets", sources))
 
@@ -37,21 +48,27 @@ module Synthesis
     private
       # rewrite compute_public_path to allow us to not include the query string timestamp
       # used by ActionView::Helpers::AssetTagHelper
-      def compute_public_path(source, dir, ext, add_asset_id=true)
-        source = source.dup
-        source << ".#{ext}" if File.extname(source).blank?
-        unless source =~ %r{^[-a-z]+://}
-          source = "/#{dir}/#{source}" unless source[0] == ?/
-          asset_id = rails_asset_id(source)
-          source << '?' + asset_id if defined?(RAILS_ROOT) and add_asset_id and not asset_id.blank?
-          source = "#{ActionController::Base.asset_host}#{@controller.request.relative_url_root}#{source}"
-        end
+      # Hacked by NW to get correct . treatment
+      def compute_public_path(source, dir, ext=nil, add_asset_id=true)
+        source  = "/#{dir}/#{source}" unless source.first == "/" || source.include?(":")
+        last_source = source.split("/").last
+
+        source << ".#{ext}" unless ext.blank? || (last_source.include?(".") && ["jpg", "gif", "png"].include?(last_source.split(".").last))
+        source << '?' + rails_asset_id(source) if defined?(RAILS_ROOT) && %r{^[-a-z]+://} !~ source && add_asset_id
+
+        # RAILS 2.2 UPGRADE HACK - NW
+        root = ActionController::Base.respond_to?(:relative_url_root) ?
+            ActionController::Base.relative_url_root :
+            @controller.request.relative_url_root
+
+        source  = "#{root}#{source}" unless %r{^[-a-z]+://} =~ source
+        source = ActionController::Base.asset_host + source unless source.include?(":")
         source
       end
   
       # rewrite javascript path function to not include query string timestamp
       def javascript_path(source)
-        compute_public_path(source, 'javascripts', 'js', false)       
+        compute_public_path(source, 'javascripts', 'js', false)
       end
 
       # rewrite stylesheet path function to not include query string timestamp
