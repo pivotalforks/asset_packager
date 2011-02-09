@@ -76,7 +76,7 @@ module Synthesis
       @asset_type = asset_type
       @asset_path = $asset_base_path ? "#{$asset_base_path}/#{@asset_type}" : "#{RAILS_ROOT}/public/#{@asset_type}"
       @extension = get_extension
-      @match_regex = Regexp.new("\\A#{@target}_\\d+.#{@extension}\\z")
+      @match_regex = Regexp.new("\\A#{@target}_\\w+?.#{@extension}\\z")
     end
   
     def current_file
