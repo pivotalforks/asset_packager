@@ -76,9 +76,15 @@ module Synthesis
       @asset_type = asset_type
       @asset_path = $asset_base_path ? "#{$asset_base_path}/#{@asset_type}" : "#{RAILS_ROOT}/public/#{@asset_type}"
       @extension = get_extension
-      @match_regex = Regexp.new("\\A#{@target}_\\w+?.#{@extension}\\z")
+      match_version_regex = version_regex
+      @match_regex = Regexp.new("\\A#{@target}_#{match_version_regex}\\.#{@extension}\\z")
     end
   
+    def version_regex
+      # Override to use a specific version or regex if needed
+      '\w+?'
+    end
+
     def current_file
       Dir.new(@asset_path).entries.delete_if { |x| ! (x =~ @match_regex) }.sort.reverse[0].chomp(".#{@extension}")
     end
